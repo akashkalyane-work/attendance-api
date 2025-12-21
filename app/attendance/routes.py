@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from app.attendance.schemas import AttendanceResponseSchema
 from app.attendance.dependencies import AttendanceServiceDep
@@ -46,3 +46,17 @@ async def my_attendance(
     user_id: int
 ):
     return await service.my_attendance(user_id)
+
+@attendance_router.get("/my")
+async def my_attendance_by_month(
+    service: AttendanceServiceDep,
+    user_id: int,
+    cursor: str | None = Query(
+        default=None,
+        description="Month cursor in YYYY-MM format"
+    ),
+):
+    return await service.my_attendance_my_month(
+        user_id=user_id,
+        cursor=cursor,
+    )

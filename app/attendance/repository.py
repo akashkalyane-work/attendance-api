@@ -1,5 +1,7 @@
-from datetime import date
-from sqlalchemy import select
+from datetime import datetime, date, time, timedelta, timezone
+from calendar import monthrange
+
+from sqlalchemy import select, extract
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.attendance.models import Attendance
@@ -10,13 +12,20 @@ class AttendanceRepository:
         self.session = session
 
     async def get_today_attendance(self, user_id: int):
+        today_utc = datetime.now(timezone.utc).date()
+
+        start = datetime.combine(today_utc, time.min, tzinfo=timezone.utc)
+        end = start + timedelta(days=1)
+
         stmt = (
             select(Attendance)
             .where(
                 Attendance.user_id == user_id,
-                Attendance.clock_in.cast(date) == date.today()
+                Attendance.clock_in >= start,
+                Attendance.clock_in < end
             )
         )
+
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -37,5 +46,33 @@ class AttendanceRepository:
             .where(Attendance.user_id == user_id)
             .order_by(Attendance.clock_in.desc())
         )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+    
+    async def get_attendance_by_month(
+        self,
+        user_id: int,
+        year: int,
+        month: int,
+    ):
+        start = datetime(year, month, 1, tzinfo=timezone.utc)
+        end = datetime(
+            year,
+            month,
+            monthrange(year, month)[1],
+            23, 59, 59,
+            tzinfo=timezone.utc
+        )
+
+        stmt = (
+            select(Attendance)
+            .where(
+                Attendance.user_id == user_id,
+                Attendance.clock_in >= start,
+                Attendance.clock_in <= end,
+            )
+            .order_by(Attendance.clock_in.desc())
+        )
+
         result = await self.session.execute(stmt)
         return result.scalars().all()
