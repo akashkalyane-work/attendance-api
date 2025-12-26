@@ -1,15 +1,22 @@
-from datetime import datetime, timezone
+import calendar
 from calendar import month_name
+from datetime import date, datetime, timezone
 
 from fastapi import HTTPException, status
 
 from app.attendance.models import Attendance
 from app.attendance.repository import AttendanceRepository
+from app.utils.date_utils import get_month_range
+
+STANDARD_WORK_MINUTES = (8 * 60) + 30
 
 
 class AttendanceService:
     def __init__(self, repo: AttendanceRepository):
         self.repo = repo
+
+    async def today_attendace(self, user_id: int):
+        return await self.repo.get_today_attendance(user_id)
 
     async def clock_in(self, user_id: int):
         today_attendance = await self.repo.get_today_attendance(user_id)
@@ -44,8 +51,16 @@ class AttendanceService:
 
         now = datetime.now(timezone.utc)
         attendance.clock_out = now
-        attendance.total_minutes = int(
-            (now - attendance.clock_in).total_seconds() / 60
+
+        worked_minutes = int(
+            (now - attendance.clock_in).total_seconds() // 60
+        )
+        worked_minutes = max(worked_minutes, 0)
+
+        attendance.total_minutes = worked_minutes
+        attendance.overtime_minutes = max(
+            0,
+            worked_minutes - STANDARD_WORK_MINUTES
         )
 
         return await self.repo.update(attendance)
@@ -83,3 +98,50 @@ class AttendanceService:
             "records": records,
             "next_cursor": next_cursor if records else None,
         }
+    
+    async def get_monthly_summary(self, user_id: int, month: str):
+        year, month_num = map(int, month.split("-"))
+        start, end = get_month_range(year, month_num)
+
+        attendance = await self.repo.get_attendance_aggregates(
+            user_id, start, end
+        )
+
+        attendance_dates = await self.repo.get_attendance_dates(
+            user_id, start, end
+        )
+
+        paid_holiday_dates = await self.repo.get_paid_holiday_dates(
+            start, end
+        )
+
+        days_in_month = calendar.monthrange(year, month_num)[1]
+
+        payable_dates = attendance_dates | paid_holiday_dates
+        payable_days = len(payable_dates)
+
+        present_days = len(attendance_dates)
+
+        today = date.today()
+
+        days_in_month = calendar.monthrange(start.year, start.month)[1]
+
+        if start.year == today.year and start.month == today.month:
+            effective_days = today.day
+        else:
+            effective_days = days_in_month
+
+        absent_days = max(0, effective_days - payable_days)
+
+        return {
+            "month": month,
+            "totalWorkingMinutes": attendance["total_minutes"],
+            "overtimeMinutes": attendance["overtime_minutes"],
+            "presentDays": present_days,
+            "paidHolidays": len(paid_holiday_dates),
+            "payableDays": payable_days,
+            "absentDays": absent_days
+        }
+    
+    async def get_available_months(self, user_id: int) -> list[str]:
+        return await self.repo.get_available_months(user_id)

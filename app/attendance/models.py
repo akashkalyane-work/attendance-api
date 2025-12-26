@@ -41,6 +41,12 @@ class Attendance(BaseModel):
         nullable=True
     )
 
+    overtime_minutes: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False
+    )
+
     is_manual: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
@@ -61,72 +67,72 @@ class Attendance(BaseModel):
     user: Mapped[User] = relationship("User", backref="attendances")
 
 
-class AttendanceRequest(BaseModel):
-    __tablename__ = "attendance_requests"
+# class AttendanceRequest(BaseModel):
+#     __tablename__ = "attendance_requests"
 
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        index=True,
-        nullable=False
-    )
+#     user_id: Mapped[int] = mapped_column(
+#         ForeignKey("users.id", ondelete="CASCADE"),
+#         index=True,
+#         nullable=False
+#     )
 
-    attendance_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("attendance.id", ondelete="SET NULL"),
-        nullable=True
-    )
+#     attendance_id: Mapped[Optional[int]] = mapped_column(
+#         ForeignKey("attendance.id", ondelete="SET NULL"),
+#         nullable=True
+#     )
 
-    request_type: Mapped[str] = mapped_column(
-        String(30),
-        nullable=False
-        # FORGOT_CLOCK_IN | FORGOT_CLOCK_OUT | TIME_EDIT
-    )
+#     request_type: Mapped[str] = mapped_column(
+#         String(30),
+#         nullable=False
+#         # FORGOT_CLOCK_IN | FORGOT_CLOCK_OUT | TIME_EDIT
+#     )
 
-    requested_clock_in: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True
-    )
+#     requested_clock_in: Mapped[Optional[datetime]] = mapped_column(
+#         DateTime(timezone=True),
+#         nullable=True
+#     )
 
-    requested_clock_out: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True
-    )
+#     requested_clock_out: Mapped[Optional[datetime]] = mapped_column(
+#         DateTime(timezone=True),
+#         nullable=True
+#     )
 
-    reason: Mapped[str] = mapped_column(
-        Text,
-        nullable=False
-    )
+#     reason: Mapped[str] = mapped_column(
+#         Text,
+#         nullable=False
+#     )
 
-    status: Mapped[str] = mapped_column(
-        String(20),
-        default="PENDING",
-        nullable=False
-        # PENDING | APPROVED | REJECTED
-    )
+#     status: Mapped[str] = mapped_column(
+#         String(20),
+#         default="PENDING",
+#         nullable=False
+#         # PENDING | APPROVED | REJECTED
+#     )
 
-    admin_comment: Mapped[Optional[str]] = mapped_column(
-        Text,
-        nullable=True
-    )
+#     admin_comment: Mapped[Optional[str]] = mapped_column(
+#         Text,
+#         nullable=True
+#     )
 
-    reviewed_by: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("users.id"),
-        nullable=True
-    )
+#     reviewed_by: Mapped[Optional[int]] = mapped_column(
+#         ForeignKey("users.id"),
+#         nullable=True
+#     )
 
-    reviewed_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True
-    )
+#     reviewed_at: Mapped[Optional[datetime]] = mapped_column(
+#         DateTime(timezone=True),
+#         nullable=True
+#     )
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now()
-    )
+#     created_at: Mapped[datetime] = mapped_column(
+#         DateTime(timezone=True),
+#         server_default=func.now()
+#     )
 
-    # relationships
-    user = relationship("User", foreign_keys=[user_id])
-    admin = relationship("User", foreign_keys=[reviewed_by])
-    attendance = relationship("Attendance", backref="requests")
+#     # relationships
+#     user = relationship("User", foreign_keys=[user_id])
+#     admin = relationship("User", foreign_keys=[reviewed_by])
+#     attendance = relationship("Attendance", backref="requests")
 
 
 class AttendanceAudit(BaseModel):

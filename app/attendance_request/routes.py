@@ -22,7 +22,6 @@ router = APIRouter(
 async def create_request(
     data: AttendanceRequestCreateSchema,
     service: AttendanceRequestServiceDep,
-    # user: User = Depends(get_current_user),
     user_id: int
 ):
     return await service.create_request(user_id, data)
