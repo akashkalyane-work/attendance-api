@@ -19,6 +19,11 @@ class User(BaseModel):
         default="user"  # user | admin
     )
 
+    password_hash: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False
+    )
+
     hourly_rate: Mapped[Optional[float]] = mapped_column(
         Numeric(10, 2),
         nullable=True

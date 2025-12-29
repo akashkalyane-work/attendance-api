@@ -1,6 +1,7 @@
 import calendar
 from calendar import month_name
 from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
 
@@ -9,33 +10,42 @@ from app.attendance.repository import AttendanceRepository
 from app.utils.date_utils import get_month_range
 
 STANDARD_WORK_MINUTES = (8 * 60) + 30
-
+IST = ZoneInfo("Asia/Kolkata")
 
 class AttendanceService:
-    def __init__(self, repo: AttendanceRepository):
-        self.repo = repo
+    def __init__(
+        self, 
+        attendance_repo: AttendanceRepository
+    ):
+        self.attendance_repo = attendance_repo
 
     async def today_attendace(self, user_id: int):
-        return await self.repo.get_today_attendance(user_id)
+        today = date.today()
+        return await self.attendance_repo.get_today_attendance(user_id, today)
 
     async def clock_in(self, user_id: int):
-        today_attendance = await self.repo.get_today_attendance(user_id)
+        today = date.today()
+        today_attendance = await self.attendance_repo.get_today_attendance(user_id, today)
 
         if today_attendance:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Already clocked in today"
             )
-
+        
+        clock_in=datetime.now(timezone.utc)
+        
         attendance = Attendance(
             user_id=user_id,
-            clock_in=datetime.now(timezone.utc),
+            clock_in=clock_in,
+            attendance_date=clock_in.astimezone(IST).date(),
             is_manual=False
         )
-        return await self.repo.create(attendance)
+        return await self.attendance_repo.create(attendance)
 
     async def clock_out(self, user_id: int):
-        attendance = await self.repo.get_today_attendance(user_id)
+        today = date.today()
+        attendance = await self.attendance_repo.get_today_attendance(user_id, today)
 
         if not attendance:
             raise HTTPException(
@@ -63,10 +73,10 @@ class AttendanceService:
             worked_minutes - STANDARD_WORK_MINUTES
         )
 
-        return await self.repo.update(attendance)
+        return await self.attendance_repo.update(attendance)
 
     async def my_attendance(self, user_id: int):
-        return await self.repo.get_my_attendance(user_id)
+        return await self.attendance_repo.get_my_attendance(user_id)
     
     async def my_attendance_my_month(
         self,
@@ -80,7 +90,7 @@ class AttendanceService:
             now = datetime.now(timezone.utc)
             year, month = now.year, now.month
 
-        records = await self.repo.get_attendance_by_month(
+        records = await self.attendance_repo.get_attendance_by_month(
             user_id=user_id,
             year=year,
             month=month,
@@ -103,15 +113,15 @@ class AttendanceService:
         year, month_num = map(int, month.split("-"))
         start, end = get_month_range(year, month_num)
 
-        attendance = await self.repo.get_attendance_aggregates(
+        attendance = await self.attendance_repo.get_attendance_aggregates(
             user_id, start, end
         )
 
-        attendance_dates = await self.repo.get_attendance_dates(
+        attendance_dates = await self.attendance_repo.get_attendance_dates(
             user_id, start, end
         )
 
-        paid_holiday_dates = await self.repo.get_paid_holiday_dates(
+        paid_holiday_dates = await self.attendance_repo.get_paid_holiday_dates(
             start, end
         )
 
@@ -144,4 +154,4 @@ class AttendanceService:
         }
     
     async def get_available_months(self, user_id: int) -> list[str]:
-        return await self.repo.get_available_months(user_id)
+        return await self.attendance_repo.get_available_months(user_id)

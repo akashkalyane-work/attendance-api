@@ -12,18 +12,12 @@ class AttendanceRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_today_attendance(self, user_id: int):
-        today_utc = datetime.now(timezone.utc).date()
-
-        start = datetime.combine(today_utc, time.min, tzinfo=timezone.utc)
-        end = start + timedelta(days=1)
-
+    async def get_today_attendance(self, user_id: int, today: date):
         stmt = (
             select(Attendance)
             .where(
                 Attendance.user_id == user_id,
-                Attendance.clock_in >= start,
-                Attendance.clock_in < end
+                Attendance.attendance_date == today
             )
         )
 

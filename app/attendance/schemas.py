@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 
 from pydantic import BaseModel
 
@@ -24,3 +24,31 @@ class AttendanceSummaryResponse(BaseModel):
     absentDays: int
     paidHolidays: int
     payableDays: int
+
+AttendanceState = Literal[
+    "NOT_CLOCKED_IN",
+    "CLOCKED_IN",
+    "CLOCKED_OUT"
+]
+
+AttendanceSource = Literal[
+    "ATTENDANCE",
+    "REQUEST",
+    "NONE"
+]
+
+
+class AttendanceTodayStateResponse(BaseModel):
+    state: AttendanceState
+    source: AttendanceSource
+
+    effective_clock_in: Optional[datetime] = None
+    effective_clock_out: Optional[datetime] = None
+
+    can_clock_in: bool
+    can_clock_out: bool
+
+    can_request_clock_in: bool
+    can_request_clock_out: bool
+
+    message: Optional[str] = None

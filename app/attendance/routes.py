@@ -5,7 +5,6 @@ from fastapi import APIRouter, Query
 from app.attendance.schemas import AttendanceResponseSchema, AttendanceSummaryResponse
 from app.attendance.dependencies import AttendanceServiceDep
 
-
 attendance_router = APIRouter(prefix="/attendances", tags=["attendances"])
 
 

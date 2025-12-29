@@ -5,12 +5,14 @@ from sqlalchemy import (
     ForeignKey,
     String,
     Text,
-    DateTime
+    DateTime,
+    Enum as SAEnum
 )
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from sqlalchemy.sql import func
 
 from app.core.database import BaseModel
+from app.core.enums import AttendanceRequestType, AttendanceRequestStatus
 
 
 class AttendanceRequest(BaseModel):
@@ -27,18 +29,12 @@ class AttendanceRequest(BaseModel):
         nullable=True
     )
 
-    request_type: Mapped[str] = mapped_column(
-        String(30),
+    request_type: Mapped[AttendanceRequestType] = mapped_column(
+        SAEnum(AttendanceRequestType, name="attendance_request_type"),
         nullable=False
-        # FORGOT_CLOCK_IN | FORGOT_CLOCK_OUT | TIME_EDIT
     )
 
-    requested_clock_in: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True
-    )
-
-    requested_clock_out: Mapped[Optional[datetime]] = mapped_column(
+    requested_time: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True
     )
@@ -48,16 +44,10 @@ class AttendanceRequest(BaseModel):
         nullable=False
     )
 
-    status: Mapped[str] = mapped_column(
-        String(20),
-        default="PENDING",
+    status: Mapped[AttendanceRequestStatus] = mapped_column(
+        SAEnum(AttendanceRequestStatus, name="attendance_request_status"),
+        default=AttendanceRequestStatus.PENDING,
         nullable=False
-        # PENDING | APPROVED | REJECTED
-    )
-
-    admin_comment: Mapped[Optional[str]] = mapped_column(
-        Text,
-        nullable=True
     )
 
     reviewed_by: Mapped[Optional[int]] = mapped_column(
