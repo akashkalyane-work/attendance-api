@@ -5,17 +5,17 @@ from fastapi import APIRouter, Query
 from app.attendance.schemas import AttendanceResponseSchema, AttendanceSummaryResponse
 from app.attendance.dependencies import AttendanceServiceDep
 
-attendance_router = APIRouter(prefix="/attendances", tags=["attendances"])
+router = APIRouter(prefix="/attendances", tags=["attendances"])
 
 
-@attendance_router.get("/today", response_model=AttendanceResponseSchema | None)
+@router.get("/today", response_model=AttendanceResponseSchema | None)
 async def get_today_attendance(
     service: AttendanceServiceDep,
     user_id: int = 1
 ):
     return await service.today_attendace(user_id)
 
-@attendance_router.post(
+@router.post(
     "/clock-in",
     response_model=AttendanceResponseSchema,
     status_code=201
@@ -28,7 +28,7 @@ async def clock_in(
     return await service.clock_in(user_id)
 
 
-@attendance_router.post(
+@router.post(
     "/clock-out",
     response_model=AttendanceResponseSchema
 )
@@ -40,18 +40,7 @@ async def clock_out(
     return await service.clock_out(user_id)
 
 
-@attendance_router.get(
-    "/me",
-    response_model=list[AttendanceResponseSchema]
-)
-async def my_attendance(
-    service: AttendanceServiceDep,
-    # user: User = Depends(get_current_user),
-    user_id: int = 1
-):
-    return await service.my_attendance(user_id)
-
-@attendance_router.get("/my")
+@router.get("/my")
 async def my_attendance_by_month(
     service: AttendanceServiceDep,
     cursor: str | None = Query(
@@ -60,12 +49,12 @@ async def my_attendance_by_month(
     ),
     user_id: int = 1
 ):
-    return await service.my_attendance_my_month(
+    return await service.get_attendance_by_month(
         user_id,
         cursor=cursor,
     )
 
-@attendance_router.get(
+@router.get(
     "/summary",
     response_model=AttendanceSummaryResponse
 )
@@ -77,7 +66,7 @@ async def get_attendance_summary(
 ):
     return await service.get_monthly_summary(user_id, month)
 
-@attendance_router.get("/months", response_model=List[str])
+@router.get("/months", response_model=List[str])
 async def get_attendance_summary_months(
     service: AttendanceServiceDep,
     user_id: int = 1

@@ -1,11 +1,13 @@
 from datetime import datetime, date, time, timedelta, timezone
 from calendar import monthrange
 
-from sqlalchemy import select, func
+from sqlalchemy import select, outerjoin, func, extract, and_, or_, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.attendance.models import Attendance
+from app.users.models import User
 from app.holidays.models import PaidHoliday
+from app.core.enums import UserRole
 
 
 class AttendanceRepository:
@@ -35,14 +37,57 @@ class AttendanceRepository:
         await self.session.refresh(attendance)
         return attendance
 
-    async def get_my_attendance(self, user_id: int):
+    async def get_today_attendance_all_users(self, today: date):
         stmt = (
-            select(Attendance)
-            .where(Attendance.user_id == user_id)
-            .order_by(Attendance.clock_in.desc())
+            select(
+                Attendance.id.label("attendance_id"),
+                User.id.label("user_id"),
+                User.name.label("user_name"),
+                Attendance.clock_in,
+            )
+            .select_from(
+                outerjoin(
+                    User,
+                    Attendance,
+                    (Attendance.user_id == User.id)
+                    & (Attendance.attendance_date == today),
+                )
+            )
+            .where(User.role == UserRole.USER)   # ✅ EXCLUDE ADMINS
+            .order_by(User.name)
         )
+
         result = await self.session.execute(stmt)
-        return result.scalars().all()
+        return result.mappings().all()
+    
+    async def get_latest_month_with_data(
+        self,
+        user_id: int,
+        before_year: int,
+        before_month: int,
+    ):
+        stmt = (
+            select(
+                extract("year", Attendance.attendance_date).label("year"),
+                extract("month", Attendance.attendance_date).label("month"),
+            )
+            .where(
+                Attendance.user_id == user_id,
+                or_(
+                    extract("year", Attendance.attendance_date) < before_year,
+                    and_(
+                        extract("year", Attendance.attendance_date) == before_year,
+                        extract("month", Attendance.attendance_date) <= before_month,
+                    ),
+                ),
+            )
+            .group_by("year", "month")
+            .order_by(desc("year"), desc("month"))
+            .limit(1)
+        )
+
+        row = (await self.session.execute(stmt)).first()
+        return row
     
     async def get_attendance_by_month(
         self,
@@ -73,54 +118,73 @@ class AttendanceRepository:
         return result.scalars().all()
     
     async def get_attendance_dates(
-        self, user_id: int, start: date, end: date
+        self,
+        user_id: int,
+        start: date,
+        end: date,
     ) -> set[date]:
-        stmt = select(func.date(Attendance.clock_in)).where(
+        stmt = select(Attendance.attendance_date).where(
             Attendance.user_id == user_id,
-            Attendance.clock_in >= start,
-            Attendance.clock_in < end
+            Attendance.attendance_date >= start,
+            Attendance.attendance_date < end,
         ).distinct()
 
         res = await self.session.execute(stmt)
         return {row[0] for row in res.all()}
+
+    async def get_missing_clock_out_count(
+        self,
+        user_id: int,
+        start: date,
+        end: date,
+    ) -> int:
+        stmt = select(func.count()).where(
+            Attendance.user_id == user_id,
+            Attendance.attendance_date >= start,
+            Attendance.attendance_date < end,
+            Attendance.clock_in.is_not(None),
+            Attendance.clock_out.is_(None),
+            Attendance.attendance_date < date.today(),  # exclude today
+        )
+
+        res = await self.session.execute(stmt)
+        return res.scalar_one()
     
-    async def get_paid_holiday_dates(self, start: date, end: date) -> set[date]:
+    async def get_paid_holiday_dates(
+        self,
+        start: date,
+        end: date,
+    ) -> set[date]:
         stmt = select(PaidHoliday.date).where(
             PaidHoliday.date >= start,
             PaidHoliday.date < end,
-            PaidHoliday.is_active.is_(True)
+            PaidHoliday.is_active.is_(True),
         )
 
         res = await self.session.execute(stmt)
         return {row[0] for row in res.all()}
-    
-    async def get_paid_holidays_count(self, start: date, end: date) -> int:
-        stmt = select(func.count()).where(
-            PaidHoliday.date >= start,
-            PaidHoliday.date < end,
-            PaidHoliday.is_active == True
-        )
-        res = await self.session.execute(stmt)
-        return res.scalar() or 0
 
-    async def get_attendance_aggregates(self, user_id: int, start: date, end: date):
+    async def get_monthly_aggregates(
+        self,
+        user_id: int,
+        start: date,
+        end: date,
+    ):
         stmt = select(
-            func.sum(Attendance.total_minutes),
-            func.sum(Attendance.overtime_minutes),
-            func.count(func.distinct(func.date(Attendance.clock_in)))
+            func.coalesce(func.sum(Attendance.total_minutes), 0),
+            func.coalesce(func.sum(Attendance.overtime_minutes), 0),
         ).where(
             Attendance.user_id == user_id,
-            Attendance.clock_in >= start,
-            Attendance.clock_in < end
+            Attendance.attendance_date >= start,
+            Attendance.attendance_date < end,
         )
 
         res = await self.session.execute(stmt)
-        total_minutes, overtime_minutes, present_days = res.one()
+        total_minutes, overtime_minutes = res.one()
 
         return {
-            "total_minutes": total_minutes or 0,
-            "overtime_minutes": overtime_minutes or 0,
-            "present_days": present_days or 0
+            "total_minutes": total_minutes,
+            "overtime_minutes": overtime_minutes,
         }
     
     async def get_available_months(self, user_id: int) -> list[str]:

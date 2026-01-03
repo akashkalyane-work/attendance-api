@@ -10,3 +10,7 @@ class AttendanceRequestStatus(str, Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
+
+class UserRole(str, Enum):
+    USER = "user"
+    ADMIN = "admin"

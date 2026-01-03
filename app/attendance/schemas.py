@@ -52,3 +52,9 @@ class AttendanceTodayStateResponse(BaseModel):
     can_request_clock_out: bool
 
     message: Optional[str] = None
+
+class TodayAttendanceAdminResponse(BaseModel):
+    attendance_id: int | None
+    clock_in: datetime | None
+    user_id: int
+    user_name: str

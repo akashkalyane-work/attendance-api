@@ -5,8 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import init_orm, close_orm
-from app.attendance.routes import attendance_router
-from app.attendance_request.routes import request_router
+from app.attendance.routes import router as attendance_router
+from app.attendance_request.routes import router as request_router
+from app.admin.routes import router as admin_router
 from app.attendance.schemas import AttendanceTodayStateResponse
 from app.attendance_request.dependencies import AttendanceRequestServiceDep
 
@@ -43,3 +44,4 @@ async def get_today_attendance_state(
 
 app.include_router(attendance_router)
 app.include_router(request_router)
+app.include_router(admin_router)

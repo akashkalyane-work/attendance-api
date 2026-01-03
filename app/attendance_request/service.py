@@ -5,7 +5,7 @@ from fastapi import HTTPException, status
 
 from app.attendance.models import Attendance
 from app.attendance.schemas import AttendanceTodayStateResponse
-from app.attendance_request.schemas import AttendanceRequestCreateSchema, AttendanceRequestResponseSchema
+from app.attendance_request.schemas import AttendanceRequestCreateSchema, AttendanceRequestResponseSchema, AttendanceRequestAdminResponse
 from app.attendance.repository import AttendanceRepository
 from app.attendance_request.models import AttendanceRequest
 from app.attendance_request.repository import AttendanceRequestRepository
@@ -234,4 +234,14 @@ class AttendanceRequestService:
             AttendanceRequestResponseSchema.model_validate(req)
             for req in requests
         ]
+
+    async def get_pending_requests(self) -> list[AttendanceRequestAdminResponse]:
+        requests = await self.request_repo.get_pending_requests()
+
+        return [
+            AttendanceRequestAdminResponse.model_validate(req)
+            for req in requests
+        ]
+
+        # return await self.request_repo.get_pending_requests()
 

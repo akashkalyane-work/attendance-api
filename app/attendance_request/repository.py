@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.attendance_request.models import AttendanceRequest
@@ -33,6 +34,7 @@ class AttendanceRequestRepository:
         stmt = (
             select(AttendanceRequest)
             .where(AttendanceRequest.status == "PENDING")
+            .options(selectinload(AttendanceRequest.user))
         )
         result = await self.session.execute(stmt)
         return result.scalars().all()
