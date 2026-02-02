@@ -1,4 +1,4 @@
-from datetime import datetime, date, time, timedelta, timezone
+from datetime import datetime, date, timezone
 from calendar import monthrange
 
 from sqlalchemy import select, outerjoin, func, extract, and_, or_, desc
@@ -13,6 +13,17 @@ from app.core.enums import UserRole
 class AttendanceRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    async def get_by_id(self, attendance_id: int):
+        stmt = (
+            select(Attendance)
+            .where(
+                Attendance.id == attendance_id
+            )
+        )
+
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_today_attendance(self, user_id: int, today: date):
         stmt = (
@@ -187,7 +198,7 @@ class AttendanceRepository:
             "overtime_minutes": overtime_minutes,
         }
     
-    async def get_available_months(self, user_id: int) -> list[str]:
+    async def get_available_months_by_user_id(self, user_id: int) -> list[str]:
         month_expr = func.to_char(
             func.date_trunc('month', Attendance.clock_in),
             'YYYY-MM'
@@ -202,3 +213,31 @@ class AttendanceRepository:
 
         result = await self.session.execute(stmt)
         return [row.month for row in result.all()]
+    
+    async def get_available_months_all_users(self) -> list[str]:
+        month_expr = func.to_char(
+            func.date_trunc('month', Attendance.clock_in),
+            'YYYY-MM'
+        )
+
+        stmt = (
+            select(month_expr.label('month'))
+            .group_by(month_expr)
+            .order_by(month_expr.desc())
+        )
+
+        result = await self.session.execute(stmt)
+        return [row.month for row in result.all()]
+    
+    async def fetch_attendance_range(self, start_date, end_date):
+        stmt = (
+            select(Attendance, User)
+            .join(User)
+            .where(
+                Attendance.attendance_date.between(start_date, end_date)
+            )
+            .order_by(User.id, Attendance.attendance_date)
+        )
+
+        result = await self.session.execute(stmt)
+        return result.all()

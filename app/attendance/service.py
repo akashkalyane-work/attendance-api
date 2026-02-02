@@ -7,7 +7,9 @@ from fastapi import HTTPException, status
 
 from app.attendance.models import Attendance
 from app.attendance.repository import AttendanceRepository
+from app.admin.schemas import AdminTimeEditSchema
 from app.utils.date_utils import get_month_range
+from app.utils.excel import create_attendance_excel
 
 STANDARD_WORK_MINUTES = (8 * 60) + 30
 IST = ZoneInfo("Asia/Kolkata")
@@ -18,6 +20,26 @@ class AttendanceService:
         attendance_repo: AttendanceRepository
     ):
         self.attendance_repo = attendance_repo
+
+    def _group_by_user(self, rows):
+        data = {}
+
+        for attendance, user in rows:
+            if user.id not in data:
+                data[user.id] = {
+                    "name": user.name,
+                    "records": []
+                }
+
+            data[user.id]["records"].append({
+                "date": attendance.attendance_date,
+                "in_time": attendance.clock_in,
+                "out_time": attendance.clock_out,
+                "total_minutes": attendance.total_minutes,
+                "ot_minutes": attendance.overtime_minutes,
+            })
+
+        return data
 
     async def today_attendace(self, user_id: int):
         today = date.today()
@@ -79,6 +101,45 @@ class AttendanceService:
 
         return await self.attendance_repo.update(attendance)
     
+    async def edit_attendance_time(
+        self,
+        attendance_id: int,
+        payload: AdminTimeEditSchema
+    ):
+        attendance = await self.attendance_repo.get_by_id(attendance_id)
+
+        if not attendance:
+            raise HTTPException(404, "Attendance not found")
+
+        if not payload.clock_in and not payload.clock_out:
+            raise HTTPException(400, "Nothing to update")
+
+        # Apply updates
+        if payload.clock_in:
+            attendance.clock_in = payload.clock_in
+
+        if payload.clock_out:
+            attendance.clock_out = payload.clock_out
+
+        # Validate time order
+        if attendance.clock_in and attendance.clock_out:
+            if attendance.clock_out <= attendance.clock_in:
+                raise HTTPException(
+                    400, "Clock-out must be after clock-in"
+                )
+
+            attendance.total_minutes = int(
+                (attendance.clock_out - attendance.clock_in).total_seconds() // 60
+            )
+            attendance.overtime_minutes = max(
+                0, attendance.total_minutes - STANDARD_WORK_MINUTES
+            )
+
+        attendance.is_manual = True
+        await self.attendance_repo.update(attendance)
+
+        return attendance
+    
     async def get_attendance_by_month(
         self,
         user_id: int,
@@ -122,34 +183,51 @@ class AttendanceService:
             "next_cursor": next_cursor,
         }
     
+    async def get_attendance_by_user_id(self, user_id: int, month: str):
+        year, month_num = map(int, month.split("-"))
+
+        records = await self.attendance_repo.get_attendance_by_month(
+            user_id=user_id,
+            year=year,
+            month=month_num,
+        )
+
+        return records
+    
     async def get_monthly_summary(self, user_id: int, month: str):
         year, month_num = map(int, month.split("-"))
         start, end = get_month_range(year, month_num)
 
+        today = date.today()
+        days_in_month = calendar.monthrange(year, month_num)[1]
+
+        # ✅ Decide effective end date
+        if year == today.year and month_num == today.month:
+            effective_end = today
+            effective_days = today.day
+        else:
+            effective_end = end
+            effective_days = days_in_month
+
+        # -------- DATA FETCH --------
         aggregates = await self.attendance_repo.get_monthly_aggregates(
-            user_id, start, end
+            user_id, start, effective_end
         )
 
         attendance_dates = await self.attendance_repo.get_attendance_dates(
-            user_id, start, end
+            user_id, start, effective_end
         )
 
         paid_holiday_dates = await self.attendance_repo.get_paid_holiday_dates(
-            start, end
+            start, effective_end
         )
 
-        payable_dates = attendance_dates | paid_holiday_dates
-
+        # -------- CALCULATIONS --------
         present_days = len(attendance_dates)
+        paid_holidays = len(paid_holiday_dates)
+
+        payable_dates = attendance_dates | paid_holiday_dates
         payable_days = len(payable_dates)
-
-        today = date.today()
-        days_in_month = calendar.monthrange(start.year, start.month)[1]
-
-        if start.year == today.year and start.month == today.month:
-            effective_days = today.day
-        else:
-            effective_days = days_in_month
 
         absent_days = max(0, effective_days - payable_days)
 
@@ -158,7 +236,7 @@ class AttendanceService:
             "totalWorkingMinutes": aggregates["total_minutes"],
             "overtimeMinutes": aggregates["overtime_minutes"],
             "presentDays": present_days,
-            "paidHolidays": len(paid_holiday_dates),
+            "paidHolidays": paid_holidays,
             "payableDays": payable_days,
             "absentDays": absent_days,
         }
@@ -166,5 +244,18 @@ class AttendanceService:
     async def get_missing_clock_out_count(self, user_id: int, start: date, end: date):
         return await self.attendance_repo.get_missing_clock_out_count(user_id, start, end)
     
-    async def get_available_months(self, user_id: int) -> list[str]:
-        return await self.attendance_repo.get_available_months(user_id)
+    async def get_available_months_by_user_id(self, user_id: int) -> list[str]:
+        return await self.attendance_repo.get_available_months_by_user_id(user_id)
+    
+    async def get_available_months_all_users(self) -> list[str]:
+        return await self.attendance_repo.get_available_months_all_users()
+    
+    async def export_attendance_excel(self, start_date, end_date):
+        rows = await self.attendance_repo.fetch_attendance_range(
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        grouped = self._group_by_user(rows)
+
+        return create_attendance_excel(grouped)

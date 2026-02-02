@@ -13,7 +13,7 @@ class AdminRepository:
         stmt = select(
             User.id,
             User.name,
-            User.hourly_rate,
+            User.perday_rate,
         ).where(User.role == UserRole.USER)
 
         res = await self.session.execute(stmt)

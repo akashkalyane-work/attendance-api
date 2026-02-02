@@ -7,3 +7,7 @@ sqlalchemy
 asyncpg
 alembic
 tzdata
+bcrypt
+passlib
+PyJWT
+python-multipart

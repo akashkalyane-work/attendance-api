@@ -1,20 +1,27 @@
-from typing import AsyncGenerator
+from typing import Annotated
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Depends, HTTPException, status
 
-from app.core.database import DbSession
+from app.auth.dependencies import get_current_user
+from app.core.enums import UserRole
 from app.users.models import User
 
 
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    async with DbSession() as session:
-        yield session
-
 # def require_admin(user: User = Depends(get_current_user)):
-def require_admin():
+# def require_admin():
     # if user.role != "ADMIN":
     #     raise HTTPException(
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail="Admin access required"
     #     )
-    return "ADMIN"
+    # return "ADMIN"
+
+def require_admin(
+    user: Annotated[User, Depends(get_current_user)],
+):
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return user

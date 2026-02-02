@@ -37,22 +37,6 @@ AttendanceSource = Literal[
     "NONE"
 ]
 
-
-class AttendanceTodayStateResponse(BaseModel):
-    state: AttendanceState
-    source: AttendanceSource
-
-    effective_clock_in: Optional[datetime] = None
-    effective_clock_out: Optional[datetime] = None
-
-    can_clock_in: bool
-    can_clock_out: bool
-
-    can_request_clock_in: bool
-    can_request_clock_out: bool
-
-    message: Optional[str] = None
-
 class TodayAttendanceAdminResponse(BaseModel):
     attendance_id: int | None
     clock_in: datetime | None

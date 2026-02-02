@@ -1,4 +1,6 @@
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from typing import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.models import BaseModel
 from app.core.config import settings
@@ -13,3 +15,8 @@ async def init_orm() -> None:
 
 async def close_orm() -> None:
     await engine.dispose()
+
+
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async with DbSession() as session:
+        yield session

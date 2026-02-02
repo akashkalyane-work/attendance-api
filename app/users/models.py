@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import datetime
 
-from sqlalchemy import String, Numeric, DateTime, func
+from sqlalchemy import String, Numeric, DateTime, Boolean, text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import BaseModel
@@ -24,10 +24,12 @@ class User(BaseModel):
         nullable=False
     )
 
-    hourly_rate: Mapped[Optional[float]] = mapped_column(
+    perday_rate: Mapped[Optional[float]] = mapped_column(
         Numeric(10, 2),
         nullable=True
     )
+
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
