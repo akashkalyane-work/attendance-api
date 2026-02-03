@@ -49,7 +49,7 @@ async def refresh(
 
     response.set_cookie(
         key="refresh_token",
-        value=refresh,
+        value=new_refresh,
         httponly=True,
         secure=True,          
         samesite="none",      
