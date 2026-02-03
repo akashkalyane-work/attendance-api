@@ -11,3 +11,4 @@ bcrypt
 passlib
 PyJWT
 python-multipart
+python-dateutil
