@@ -26,7 +26,8 @@ async def login(
         key="refresh_token",
         value=refresh,
         httponly=True,
-        # samesite="strict",
+        secure=True,         
+        samesite="none",   
         path="/auth/refresh",
     )
 
@@ -48,9 +49,10 @@ async def refresh(
 
     response.set_cookie(
         key="refresh_token",
-        value=new_refresh,
+        value=refresh,
         httponly=True,
-        # samesite="strict",
+        secure=True,          
+        samesite="none",      
         path="/auth/refresh",
     )
 
