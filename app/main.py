@@ -28,11 +28,14 @@ app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8100"],
+    allow_origins=[
+        "http://localhost:8100",
+        "http://localhost",
+        "capacitor://localhost",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["content-disposition"],
 )
 
 app.include_router(attendance_router)
