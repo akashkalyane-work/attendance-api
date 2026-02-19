@@ -26,12 +26,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 
+origins = [
+    "http://localhost",
+    "http://localhost:8100",
+    "https://localhost",
+    "capacitor://localhost",
+    "ionic://localhost",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost",
-        "capacitor://localhost",
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
