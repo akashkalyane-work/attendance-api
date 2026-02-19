@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends
 
-from app.users.schemas import UserCreate, UserUpdate, UserResponse, UserAdminResponse
 from app.users.dependencies import UserServiceDep
+from app.auth.dependencies import get_current_user
+from app.users.models import User
+from app.users.schemas import UserCreate, UserUpdate, UserResponse, UserAdminResponse
 
-router = APIRouter(prefix="/admin/users", tags=["Users"])
+router = APIRouter(prefix="/users", tags=["Users"])
 
 @router.post("", response_model=UserResponse)
 async def create_user(
@@ -15,6 +17,12 @@ async def create_user(
 @router.get("", response_model=list[UserAdminResponse])
 async def list_users(service: UserServiceDep):
     return await service.get_users()
+
+@router.get("/profile", response_model=UserResponse)
+async def get_user_profile(
+    user: User = Depends(get_current_user),
+):
+    return user
 
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(

@@ -8,6 +8,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     REFRESH_TOKEN_EXPIRE_MINUTES: int
     ALGORITHM: str
+    ENV: str
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENV == "production"
 
     model_config = {
         "env_file": ".env",
