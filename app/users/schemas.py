@@ -12,6 +12,7 @@ class UserCreate(BaseModel):
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
+    password: Optional[str] = None
     perday_rate: Optional[float] = None
     is_active: Optional[bool] = None
     role: UserRole

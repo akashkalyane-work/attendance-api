@@ -32,7 +32,13 @@ class UserService:
         if not user:
             raise HTTPException(404, "User not found")
 
-        for field, value in data.dict(exclude_unset=True).items():
+        update_data = data.dict(exclude_unset=True)
+
+        # Handle password separately — hash it and map to correct field
+        if "password" in update_data:
+            user.password_hash = hash_password(update_data.pop("password"))
+
+        for field, value in update_data.items():
             setattr(user, field, value)
 
         return await self.repo.update(user)
